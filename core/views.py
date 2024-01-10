@@ -12,7 +12,9 @@ from .models import Profile, Post
 def index(request):
     user_object = User.objects.get(username=request.user.username)  # getting object of currently logged-in user
     user_profile = Profile.objects.get(user=user_object)  # getting the profile of the user
-    return render(request, 'index.html', {'user_profile': user_profile})
+
+    posts = Post.objects.all()
+    return render(request, 'index.html', {'user_profile': user_profile, 'posts': posts})
 
 
 @login_required(login_url='signin')
