@@ -5,7 +5,7 @@ from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
 from .models import Profile, Post, LikePost, FollowersCount
 from itertools import chain
-
+import random
 
 
 # Create your views here.
@@ -29,8 +29,34 @@ def index(request):
     # making into a list chain then changing HTML posts to this list
     feed_lists = list(chain(*feed))
 
-    posts = Post.objects.all()
-    return render(request, 'index.html', {'user_profile': user_profile, 'posts': feed_lists})
+    # user suggestion
+    all_users = User.objects.all()
+    user_following_all = []
+
+    for user in user_following:
+        user_list = User.objects.get(username=user.user)
+        user_following_all.append(user_list)
+
+    user_suggestion_list = [x for x in list(all_users) if (x not in list(user_following_all))]
+    current_user = User.objects.filter(username=request.user.username)  # so it doesn't suggest current user
+    final_suggestions = [x for x in list(user_suggestion_list) if (x not in list(current_user))]
+    random.shuffle(final_suggestions)
+
+    username_profile = []
+    username_profile_list = []
+
+    for users in final_suggestions:
+        username_profile.append(users.id)
+
+    for ids in username_profile:
+        profile_lists = Profile.objects.filter(id_user=ids)
+        username_profile_list.append(profile_lists)
+
+    suggestions_username_profile_lists = list(chain(*username_profile_list))
+
+    return render(request, 'index.html', {'user_profile': user_profile, 'posts': feed_lists, 'suggestions_username_profile_lists':
+        suggestions_username_profile_lists[:4]})
+
 
 @login_required(login_url='signin')
 def search(request):
@@ -40,7 +66,8 @@ def search(request):
 
     if request.method == "POST":
         username = request.POST['username']
-        user_object = User.objects.filter(username__icontains=username)  # filter to see if there is a user with username
+        user_object = User.objects.filter(
+            username__icontains=username)  # filter to see if there is a user with username
 
         username_profile = []
         username_profile_list = []
@@ -54,7 +81,9 @@ def search(request):
 
         username_profile_list = list(chain(*username_profile_list))
 
-    return render(request, 'search.html', {'user_profile': user_profile, 'username_profile_list': username_profile_list})
+    return render(request, 'search.html',
+                  {'user_profile': user_profile, 'username_profile_list': username_profile_list})
+
 
 @login_required(login_url='signin')
 def upload(request):
@@ -69,6 +98,7 @@ def upload(request):
         return redirect('/')
     else:
         return redirect('/')
+
 
 @login_required(login_url='signin')
 def like_post(request):
@@ -91,6 +121,7 @@ def like_post(request):
         post.no_of_likes -= 1
         post.save()
         return redirect('/')
+
 
 @login_required(login_url='signin')
 def profile(request, pk):
@@ -120,6 +151,7 @@ def profile(request, pk):
     }
     return render(request, 'profile.html', context)
 
+
 @login_required(login_url='signin')
 def follow(request):
     if request.method == "POST":
@@ -129,13 +161,14 @@ def follow(request):
         if FollowersCount.objects.filter(follower=follower, user=user).first():
             delete_follower = FollowersCount.objects.get(follower=follower, user=user)
             delete_follower.delete()
-            return redirect('/profile/'+user)
+            return redirect('/profile/' + user)
         else:
             new_follower = FollowersCount.objects.create(follower=follower, user=user)
             new_follower.save()
-            return redirect('/profile/'+user)
+            return redirect('/profile/' + user)
     else:
         return redirect('/')
+
 
 @login_required(login_url='signin')
 def settings(request):
